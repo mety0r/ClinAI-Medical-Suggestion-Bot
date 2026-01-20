@@ -9,26 +9,26 @@ from langchain.memory import ChatMessageHistory, ConversationBufferMemory
 import chainlit as cl
 
 
-
+#Initialize variable to store uploaded files
 @cl.on_chat_start
 async def on_chat_start():
-    files = None #Initialize variable to store uploaded files
+    files = None 
 
-    # Wait for the user to upload files
+# Parameter for User to upload file. File size limit set to 500.
     while files is None:
         files = await cl.AskFileMessage(
             content="Please upload one or more pdf files to begin!",
             accept=["application/pdf"],
-            max_size_mb=500,# Optionally limit the file size,
+            max_size_mb=500,
             max_files=10,
-            timeout=180, # Set a timeout for user response,
+            timeout=180, 
         ).send()
 
     # Process each uploaded file
     texts = []
     metadatas = []
     for file in files:
-        print(file) # Print the file object for debugging
+        print(file) 
 
         # Read the PDF file
         pdf = PyPDF2.PdfReader(file.path)
@@ -36,16 +36,16 @@ async def on_chat_start():
         for page in pdf.pages:
             pdf_text += page.extract_text()
             
-        # Split the text into chunks
+        # Creating Chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=50)
         file_texts = text_splitter.split_text(pdf_text)
         texts.extend(file_texts)
 
-        # Create a metadata for each chunk
+        # Metadata for each Chunk
         file_metadatas = [{"source": f"{i}-{file.name}"} for i in range(len(file_texts))]
         metadatas.extend(file_metadatas)
 
-    # Create a Chroma vector store
+    # Creating Chroma vector store
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
     docsearch = await cl.make_async(Chroma.from_texts)(
         texts, embeddings, metadatas=metadatas
@@ -113,4 +113,5 @@ async def main(message: cl.Message):
         else:
             answer += "\nNo sources found"
     #return results
+
     await cl.Message(content=answer, elements=text_elements).send()
